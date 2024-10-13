@@ -1,0 +1,120 @@
+### My Open AI Service
+
+networks:
+  my-open-ai-network:
+    external: true
+    name: my-open-ai-network
+    driver: bridge
+
+services:
+  traefik:
+    image: "traefik:v3.1"
+    container_name: "ai-traefik"
+    command:
+      # - "--log.level=DEBUG"
+      # - "--log.level=TRACE"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+
+      ## Entry points for HTTP and HTTPS
+      - "--entryPoints.web.address=:80"
+      - "--entryPoints.websecure.address=:443"
+
+      ## Redirect HTTP to HTTPS  (turn off by commenting with # if you what to use OI without SSL/https)
+      - "--entryPoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entryPoints.web.http.redirections.entryPoint.scheme=https"
+
+      # ## Let's Encrypt settings for automatic SSL via Cloudflare DNS challenge
+      # - "--certificatesResolvers.cloudflare.acme.dnsChallenge.provider=cloudflare"
+      # - "--certificatesResolvers.cloudflare.acme.dnsChallenge.resolvers=1.1.1.1"
+      # # - "--certificatesResolvers.cloudflare.acme.email=${CLOUDFLARE_EMAIL}"
+      # - "--certificatesResolvers.cloudflare.acme.storage=/letsencrypt/acme.json"
+      # - "--certificatesResolvers.cloudflare.acme.dnsChallenge.delayBeforeCheck=0"
+      # - "--certificatesResolvers.cloudflare.acme.caserver=https://acme-v02.api.letsencrypt.org/directory"  # Ensure you're using Let's Encrypt production server.
+    # environment:
+    #   - "CF_API_EMAIL=${CLOUDFLARE_EMAIL}"
+    #   - "CF_API_KEY=${CLOUDFLARE_API_KEY}"  # API Token from Cloudflare with Zone DNS permissions
+    #   - "CF_API_TOKEN=${CLOUDFLARE_API_TOKEN}"  # Use API Token Instead of Global Key (Optional)
+    networks:
+      - my-open-ai-network
+    ports:
+      - "80:80"
+      - "443:443"
+      - "9999:8080"
+    restart: unless-stopped
+    volumes:
+      - ./traefik_config:/etc/traefik
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - "./letsencrypt:/letsencrypt"  # Directory for SSL certificates
+    userns_mode: "host"
+
+  # whoami:
+  #   image: "traefik/whoami"
+  #   container_name: "simple-service"
+  #   hostname: whoami
+  #   networks:
+  #     - my-open-ai-network
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.whoami.entrypoints=web,websecure"
+  #     - "traefik.http.routers.whoami.rule=HostRegexp(`^whoami\\.(${LOCAL_DOMAIN_PATTERN}|${PUBLIC_DOMAIN_PATTERN})$`)"
+  #     - "traefik.http.routers.whoami.tls=true"  # Comment this line if you what to use OI without SSL/https
+  #     - "traefik.http.routers.whoami.tls.certresolver=cloudflare"  # Use Cloudflare certresolver
+  #     - "traefik.http.services.whoami.loadbalancer.server.port=80"
+
+  ## install https://docs.openvino.ai/2024/get-started/install-openvino/install-openvino-archive-linux.html
+  ## Ollama installer documentation: https://ollama.com/blog/ollama-is-now-available-as-an-official-docker-image
+  ## Nvidia installer documentation: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#installation
+  ollama_engine:
+    image: "ollama/ollama"
+    container_name: "ollama"
+    hostname: ollama-engine
+    networks:
+      - my-open-ai-network
+    ports:
+      - 11434:11434
+    volumes:
+      - "./ollama:/root/.ollama"
+      ## Intel NPU support (turn off by commenting with # if you don't have a compatible Intel CPU)
+      # - "/opt/intel:/opt/intel"
+    ## GPU support (turn off by commenting with # if you don't have an nvidia gpu)
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            capabilities: ["gpu"]
+            # count: 1  # Adjust count for the number of GPUs you want to use
+            count: all  # Adjust count for the number of GPUs you want to use
+    restart: unless-stopped
+    ## Intel NPU support (turn off by commenting with # if you don't have a compatible Intel CPU)
+    # environment:
+    #   - OPENVINO_ENV=/opt/intel/openvino_2024.4.0
+    # devices:
+    #   - /dev/myriad0:/dev/myriad0
+    # command: >
+    #   /bin/bash -c "source /opt/intel/openvino_2024.4.0/setupvars.sh &&
+    #            /bin/bash"
+    # tty: true
+
+  open_webui:
+    image: "ghcr.io/open-webui/open-webui:main"
+    container_name: "open-webui"
+    hostname: open-webui
+    networks:
+      - my-open-ai-network
+    volumes:
+      - "./open-webui:/app/backend/data"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.open-webui.entrypoints=web,websecure"
+      - "traefik.http.routers.open-webui.rule=HostRegexp(`^${HOST_NAME_PATTERN}\\.(${LOCAL_DOMAIN_PATTERN}|${PUBLIC_DOMAIN_PATTERN})$`)"
+      - "traefik.http.routers.open-webui.rule=HostRegexp(`^${HOST_NAME_PATTERN}\\.(${PUBLIC_DOMAIN_PATTERN})$`)"
+      - "traefik.http.routers.open-webui.tls=true"  # Comment this line if you what to use OI without SSL/https
+      - "traefik.http.routers.open-webui.tls.certresolver=cloudflare"  # Use Cloudflare certresolver
+      - "traefik.http.services.open_webui.loadbalancer.server.port=8080"
+    restart: unless-stopped
+    environment:
+      OLLAMA_BASE_URL: "http://ollama-engine:11434"
