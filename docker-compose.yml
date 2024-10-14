@@ -9,7 +9,8 @@ networks:
 services:
   traefik:
     image: "traefik:v3.1"
-    container_name: "ai-traefik"
+    container_name: "${COMPOSE_PROJECT_NAME}.ai-traefik"
+    hostname: "ai-traefik"
     command:
       # - "--log.level=DEBUG"
       # - "--log.level=TRACE"
@@ -36,12 +37,13 @@ services:
     #   - "CF_API_EMAIL=${CLOUDFLARE_EMAIL}"
     #   - "CF_API_KEY=${CLOUDFLARE_API_KEY}"  # API Token from Cloudflare with Zone DNS permissions
     #   - "CF_API_TOKEN=${CLOUDFLARE_API_TOKEN}"  # Use API Token Instead of Global Key (Optional)
+    #   - "CF_ZONE_API_TOKEN=${CLOUDFLARE_API_TOKEN}"
     networks:
       - my-open-ai-network
     ports:
-      - "80:80"
-      - "443:443"
-      - "9999:8080"
+      - "89:89"
+      - "4443:4443"
+      - "9880:8080"
     restart: unless-stopped
     volumes:
       - ./traefik_config:/etc/traefik
@@ -52,7 +54,7 @@ services:
 
   # whoami:
   #   image: "traefik/whoami"
-  #   container_name: "simple-service"
+  #   container_name: "${COMPOSE_PROJECT_NAME}.whoami"
   #   hostname: whoami
   #   networks:
   #     - my-open-ai-network
@@ -69,8 +71,8 @@ services:
   ## Nvidia installer documentation: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#installation
   ollama_engine:
     image: "ollama/ollama"
-    container_name: "ollama"
-    hostname: ollama-engine
+    container_name: "${COMPOSE_PROJECT_NAME}.ollama"
+    hostname: "ollama-engine"
     networks:
       - my-open-ai-network
     ports:
@@ -101,8 +103,8 @@ services:
 
   open_webui:
     image: "ghcr.io/open-webui/open-webui:main"
-    container_name: "open-webui"
-    hostname: open-webui
+    container_name: "${COMPOSE_PROJECT_NAME}.open-webui"
+    hostname: "open-webui"
     networks:
       - my-open-ai-network
     volumes:
@@ -111,7 +113,6 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.open-webui.entrypoints=web,websecure"
       - "traefik.http.routers.open-webui.rule=HostRegexp(`^${HOST_NAME_PATTERN}\\.(${LOCAL_DOMAIN_PATTERN}|${PUBLIC_DOMAIN_PATTERN})$`)"
-      - "traefik.http.routers.open-webui.rule=HostRegexp(`^${HOST_NAME_PATTERN}\\.(${PUBLIC_DOMAIN_PATTERN})$`)"
       - "traefik.http.routers.open-webui.tls=true"  # Comment this line if you what to use OI without SSL/https
       - "traefik.http.routers.open-webui.tls.certresolver=cloudflare"  # Use Cloudflare certresolver
       - "traefik.http.services.open_webui.loadbalancer.server.port=8080"
