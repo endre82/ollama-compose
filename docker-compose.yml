@@ -19,8 +19,8 @@ services:
       - "--providers.docker.exposedbydefault=false"
 
       ## Entry points for HTTP and HTTPS
-      - "--entryPoints.web.address=:80"
-      - "--entryPoints.websecure.address=:443"
+      - "--entryPoints.web.address=:89"
+      - "--entryPoints.websecure.address=:4443"
 
       ## Redirect HTTP to HTTPS  (turn off by commenting with # if you what to use OI without SSL/https)
       - "--entryPoints.web.http.redirections.entryPoint.to=websecure"
@@ -46,10 +46,10 @@ services:
       - "9880:8080"
     restart: unless-stopped
     volumes:
-      - ./traefik_config:/etc/traefik
+      - ${DOCKER_VOLUMES_PATH}/traefik_config:/etc/traefik
       - /etc/localtime:/etc/localtime:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - "./letsencrypt:/letsencrypt"  # Directory for SSL certificates
+      - "${DOCKER_VOLUMES_PATH}/letsencrypt:/letsencrypt"  # Directory for SSL certificates
     userns_mode: "host"
 
   # whoami:
@@ -78,7 +78,7 @@ services:
     ports:
       - 11434:11434
     volumes:
-      - "./ollama:/root/.ollama"
+      - "${DOCKER_VOLUMES_PATH}/ollama:/root/.ollama"
       ## Intel NPU support (turn off by commenting with # if you don't have a compatible Intel CPU)
       # - "/opt/intel:/opt/intel"
     ## GPU support (turn off by commenting with # if you don't have an nvidia gpu)
@@ -108,7 +108,7 @@ services:
     networks:
       - my-open-ai-network
     volumes:
-      - "./open-webui:/app/backend/data"
+      - "${DOCKER_VOLUMES_PATH}/open-webui:/app/backend/data"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.open-webui.entrypoints=web,websecure"

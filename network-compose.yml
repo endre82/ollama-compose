@@ -11,7 +11,7 @@ services:
   # docker run -itd --name cloudflared cloudflare/cloudflared:latest tunnel --no-autoupdate run --token <CLOUDFLARE_TUNNEL_TOKEN>
   cloudflared_tunnel:
     image: "cloudflare/cloudflared"
-    container_name: "cloudflared-tunnel"
+    container_name: "${COMPOSE_PROJECT_NAME}.cloudflared-tunnel"
     hostname: "cf-tunnel"
     restart: unless-stopped
     command: tunnel --no-autoupdate run
