@@ -1,14 +1,13 @@
 ### My Open AI Service
 
 networks:
-  my-open-ai-network:
+  ai-net:
     external: false
-    name: my-open-ai-network
+    name: ai-net
     driver: bridge
 
 
 services:
-  # docker run -itd --name cloudflared cloudflare/cloudflared:latest tunnel --no-autoupdate run --token <CLOUDFLARE_TUNNEL_TOKEN>
   cloudflared_tunnel:
     image: "cloudflare/cloudflared"
     container_name: "${COMPOSE_PROJECT_NAME}.cloudflared-tunnel"
@@ -18,7 +17,4 @@ services:
     environment:
       - "TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}"
     networks:
-      - my-open-ai-network
-    # labels:
-    #   # enbale watchtower updates
-    #   - "com.centurylinklabs.watchtower.enable=true"
+      - ai-net
